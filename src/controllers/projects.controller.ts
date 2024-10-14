@@ -14,7 +14,7 @@ export default class ProjectsController extends AbstractController {
           const projects = await this.ctx.projects.findMany({
             where: {},
           });
-          res.status(200).send({ date: projects });
+          res.status(200).send({ data: projects });
         } catch (e) {
           console.error(e);
           next(new InternalServerError());
@@ -64,8 +64,8 @@ export default class ProjectsController extends AbstractController {
 
           res.status(201).send({ data: project });
         } catch (e) {
-          console.error(e);
-          next(new InternalServerError());
+          console.error('Error while creating project:', e);
+          next(new InternalServerError()); // Include error message for debugging
         }
       },
     ];

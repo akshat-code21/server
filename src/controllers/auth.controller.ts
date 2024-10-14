@@ -94,7 +94,7 @@ export default class AuthController extends AbstractController {
             await this.ctx.OTP.deleteMany({
               where: { email },
             });
-
+            
             await this.ctx.OTP.create({
               data: {
                 email,
@@ -116,7 +116,6 @@ export default class AuthController extends AbstractController {
 
           res.status(200).json({
             msg: 'OTP sent successfully',
-            otp_pin : otp
           });
         } catch (e) {
           console.error('Unexpected error in OTP generation:', e);
