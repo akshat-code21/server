@@ -1,0 +1,246 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model InviteCodes {
+  id   Int    @id @default(autoincrement())
+  code String @default(uuid())
+}
+
+model Users {
+  id    Int    @id @default(autoincrement())
+  name  String
+  email String @unique
+  phone String
+
+  role UserRoles?
+
+  projects                 Projects[]
+  proposals                Proposals[]
+  proposalComments         ProposalComment[]
+  mous                     MoUs[]
+  contributorToMouApproval MoUApprovals[]    @relation(name: "contributorToMouApproval")
+  adminToMouApproval       MoUApprovals[]    @relation(name: "adminToMouApproval")
+
+  contributorProfile ContributorProfiles?
+  otps               OTP?
+}
+
+model ContributorProfiles {
+  id Int @id @default(autoincrement())
+
+  userId Int   @unique
+  user   Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  occupation           String
+  experience           Int
+  aadhar               String
+  pan                  String
+  github               String
+  linkedin             String
+  contributionDuration Int
+  type                 ContributorType @default(INSTITUION)
+
+  educations                    Educations[]
+  institutionContributorProfile InstitutionContributors?
+}
+
+model InstitutionContributors {
+  id Int @id @default(autoincrement())
+
+  contributorProfile ContributorProfiles @relation(fields: [contributorProfileId], references: [id], onDelete: Cascade)
+  institution        Institutions        @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  no_objection_certification_file Files @relation("NoObjectionCertificationFile", fields: [no_objection_certification_fileId], references: [id])
+  proof_of_enrolment_file         Files @relation("ProofOfEnrolmentFile", fields: [proof_of_enrolment_fileId], references: [id])
+
+  no_objection_certification_fileId Int @unique
+  proof_of_enrolment_fileId         Int @unique
+  contributorProfileId              Int @unique
+  institutionId                     Int
+}
+
+model Institutions {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  phone        String
+  estabilished DateTime
+
+  contributors InstitutionContributors[]
+  files        Files[]
+}
+
+model Projects {
+  id          Int         @id @default(autoincrement())
+  name        String
+  type        ProjectType
+  description String      @db.Text
+
+  proposedBy Users       @relation(fields: [proposedById], references: [id])
+  proposals  Proposals[]
+
+  proposedById Int
+}
+
+model Proposals {
+  id        Int           @id @default(autoincrement())
+  details   String        @db.Text
+  resources String        @db.Text
+  impact    String        @db.Text
+  state     ProposalState @default(INCOMPLETE)
+
+  file     Files             @relation(fields: [fileId], references: [id])
+  project  Projects?         @relation(fields: [projectId], references: [id])
+  author   Users             @relation(fields: [authorId], references: [id])
+  comments ProposalComment[]
+  mou      MoUs?
+
+  projectId Int?
+  authorId  Int
+  fileId    Int  @unique
+}
+
+model ProposalComment {
+  id   Int    @id @default(autoincrement())
+  text String @db.Text
+
+  author   Users     @relation(fields: [authorId], references: [id])
+  proposal Proposals @relation(fields: [proposalId], references: [id])
+
+  state ProposalCommentState @default(PENDING)
+
+  authorId   Int
+  proposalId Int
+}
+
+model MoUs {
+  id Int @id @default(autoincrement())
+
+  uploadedBy Users     @relation(fields: [uploadedById], references: [id])
+  proposal   Proposals @relation(fields: [proposalId], references: [id])
+  file       Files?    @relation(fields: [fileId], references: [id])
+
+  uploadedById Int
+  proposalId   Int           @unique
+  fileId       Int?          @unique
+  MoUApprovals MoUApprovals?
+}
+
+model MoUApprovals {
+  id Int @id @default(autoincrement())
+
+  contributor Users @relation("contributorToMouApproval", fields: [contributorId], references: [id])
+  admin       Users @relation("adminToMouApproval", fields: [adminId], references: [id])
+  mou         MoUs  @relation(fields: [MoUId], references: [id])
+
+  contributorId Int
+  adminId       Int
+  MoUId         Int @unique
+}
+
+model Files {
+  id       Int    @id @default(autoincrement())
+  filename String
+  path     String
+
+  proposal    Proposals?
+  institution Institutions? @relation(fields: [institutionsId], references: [id], onDelete: Cascade)
+  mou         MoUs?
+
+  institutionsId           Int?
+  noObjectionCertification InstitutionContributors? @relation("NoObjectionCertificationFile")
+  proofOfEnrolment         InstitutionContributors? @relation("ProofOfEnrolmentFile")
+}
+
+model Roles {
+  id        Int         @id @default(autoincrement())
+  value     Int
+  name      String
+  userRoles UserRoles[]
+}
+
+model UserRoles {
+  id Int @id @default(autoincrement())
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Roles @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  userId Int @unique
+  roleId Int
+}
+
+model Educations {
+  id                   Int                 @id @default(autoincrement())
+  university           String
+  degree               String
+  startYear            Int
+  endYear              Int
+  contributorProfile   ContributorProfiles @relation(fields: [contributorProfileId], references: [id], onDelete: Cascade)
+  contributorProfileId Int                 @unique
+}
+
+model MetadataUniversities {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model MetadataDegrees {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model MetadataOccupations {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+
+model OTP {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  otp       String
+  createdAt DateTime @default(now())
+
+  user Users @relation(fields: [email], references: [email])
+}
+
+enum ProposalState {
+  INCOMPLETE
+  CHANGES_REQUESTED
+  REVIEW_REQUESTED
+  APPROVED
+  REJECTED
+}
+
+enum ProposalCommentState {
+  PENDING
+  RESOLVED
+}
+
+enum MoUState {
+  PENDING
+  SIGNED_BY_CONTRIBUTOR
+  SIGNED_BY_ADMIN
+  SIGNED_BY_BOTH
+}
+
+enum ProjectType {
+  NEW
+  PROPOSED
+}
+
+enum ContributorType {
+  INDIVIDUAL
+  INSTITUION
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Email</title>
+    <style>
+        /* Ensure styles are inline for compatibility */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        p {
+            color: #666;
+        }
+        .otp {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin-top: 15px;
+        }
+        .footer {
+            margin-top: 20px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Your OTP</h1>
+        <p>Here is your One Time Password (OTP) for verification:</p>
+        <div class="otp">
+            {{OTP}}
+        </div>
+        <p class="footer">Please use this OTP to complete your verification process.</p>
+    </div>
+</body>
+</html>

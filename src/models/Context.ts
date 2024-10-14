@@ -1,0 +1,76 @@
+import UserModel from './user.model';
+import MousModel from './mous.model';
+import { IContext, IDatabase } from 'interfaces';
+import { IMousModel } from 'interfaces/models/mous.model';
+import { IInstitutionsModel } from 'interfaces/models/institutions.model';
+import InstitutionsModel from './institutions.model';
+import { IProjectsModel } from 'interfaces/models/projects.model';
+import ProjectsModel from './projects.model';
+import { IMouApprovalsModel } from 'interfaces/models/mouApprovals.model';
+import MouApprovalsModel from './mouApprovals.model';
+import { IProposalsModel } from 'interfaces/models/proposals.model';
+import ProposalsModel from './proposals.model';
+import { IProposalCommentModel } from 'interfaces/models/proposalComment.model';
+import ProposalCommentModel from './proposalComment.model';
+import { IFilesModel } from 'interfaces/models/files.model';
+import FilesModel from './files.model';
+import { IRolesModel } from 'interfaces/models/roles.model';
+import RolesModel from './roles.model';
+import { IUserRolesModel } from 'interfaces/models/userRoles.model';
+import UserRolesModel from './userRoles.model';
+import { IEducationsModel } from 'interfaces/models/educations.model';
+import EducationsModel from './educations.model';
+import { IContributorProfilesModel } from 'interfaces/models/contributorProfiles.model';
+import ContributorProfilesModel from './contributorProfiles.model';
+import { IMetadataDegreesModel } from 'interfaces/models/metadataDegrees.model';
+import MetadataDegreesModel from './metadataDegrees.model';
+import { IMetadataUniversitiesModel } from 'interfaces/models/metadataUniversities.model';
+import MetadataUniversitiesModel from './metadataUniversities.model';
+import { IMetadataOccupationsModel } from 'interfaces/models/metadataOccupations.model';
+import MetadataOccupationsModel from './metadataOccupations.model';
+import { IInstitutionContributorsModel } from 'interfaces/models/institutionContributors.model';
+import InstitutionContributorsModel from './institutionContributors.model';
+import { IOTPModel } from 'interfaces/models/OTP.model';
+import OTPModel from './OTP.model';
+
+export default class Context implements IContext {
+  db: IDatabase;
+  users: UserModel;
+  mous: IMousModel;
+  institutions: IInstitutionsModel;
+  institutionContributors: IInstitutionContributorsModel;
+  projects: IProjectsModel;
+  mouApprovals: IMouApprovalsModel;
+  proposals: IProposalsModel;
+  proposalComments: IProposalCommentModel;
+  files: IFilesModel;
+  roles: IRolesModel;
+  userRoles: IUserRolesModel;
+  educations: IEducationsModel;
+  contributorProfiles: IContributorProfilesModel;
+  metadataDegrees: IMetadataDegreesModel;
+  metadataUniversities: IMetadataUniversitiesModel;
+  metadataOccupations: IMetadataOccupationsModel;
+  OTP: IOTPModel;
+
+  constructor(database: IDatabase) {
+    this.db = database;
+    this.users = new UserModel(database);
+    this.mous = new MousModel(database);
+    this.institutions = new InstitutionsModel(database);
+    this.institutionContributors = new InstitutionContributorsModel(database);
+    this.projects = new ProjectsModel(database);
+    this.mouApprovals = new MouApprovalsModel(database);
+    this.proposals = new ProposalsModel(database);
+    this.proposalComments = new ProposalCommentModel(database);
+    this.files = new FilesModel(database);
+    this.roles = new RolesModel(database);
+    this.userRoles = new UserRolesModel(database);
+    this.educations = new EducationsModel(database);
+    this.contributorProfiles = new ContributorProfilesModel(database);
+    this.metadataDegrees = new MetadataDegreesModel(database);
+    this.metadataUniversities = new MetadataUniversitiesModel(database);
+    this.metadataOccupations = new MetadataOccupationsModel(database);
+    this.OTP = new OTPModel(database);
+  }
+}
