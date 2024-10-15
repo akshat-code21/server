@@ -2,27 +2,42 @@ import { NextFunction, Request, Response } from 'express';
 import AbstractController from './index.controller';
 import { InternalServerError } from 'errors/internal-server-error';
 import { validateRequestBody, validateRequestParams } from 'validators/validateRequest';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { createProjectSchema } from 'zod_schema';
 import { ProjectType } from '@prisma/client';
 
 export default class ProjectsController extends AbstractController {
   getProjects() {
     return [
-      async (_: Request, res: Response, next: NextFunction) => {
+      async (req: Request, res: Response, next: NextFunction) => {
         try {
+          console.log('Request Headers:', req.headers); // Log all headers
+          const userId = req.currentUserId;
+          console.log('User ID:', userId); // Should log correct user ID or undefined
+  
+          if (!userId) {
+            return res.status(400).json({ error: 'User ID not found in request.' });
+          }
+  
           const projects = await this.ctx.projects.findMany({
-            where: {},
+            where: {
+              proposedBy: {
+                id: userId,
+              },
+            },
           });
-          res.status(200).send({ data: projects });
+  
+          console.log('Fetched projects:', projects);
+  
+          res.status(200).json({ data: projects });
         } catch (e) {
-          console.error(e);
+          console.error('Error fetching projects:', e);
           next(new InternalServerError());
         }
       },
     ];
   }
-
+    
   getProject() {
     return [
       validateRequestParams(z.object({ id: z.number() })),
@@ -43,12 +58,28 @@ export default class ProjectsController extends AbstractController {
 
   createProject() {
     return [
-      validateRequestBody(createProjectSchema),
+      validateRequestBody(createProjectSchema), // Validate request body with Zod
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const userId = req.currentUserId as number;
-          const { name, description, type } = req.body as unknown as { name: string; description: string; type: ProjectType };
-
+          const userId = req.currentUserId as number; // Get the userId from the middleware
+  
+          // Add validation logs to debug request body issues
+          console.log('Request body:', req.body);
+  
+          const { name, description, type } = req.body as {
+            name: string;
+            description: string;
+            type: ProjectType;
+          };
+  
+          // Check for missing required fields
+          if (!name || !description || !type) {
+            return res.status(400).json({
+              error: 'Missing required fields: name, description, or type',
+            });
+          }
+  
+          // Create the project and associate it with the current user
           const project = await this.ctx.projects.create({
             data: {
               name,
@@ -56,20 +87,34 @@ export default class ProjectsController extends AbstractController {
               type,
               proposedBy: {
                 connect: {
-                  id: userId,
+                  id: userId, // Associate with the user creating the project
                 },
               },
             },
           });
-
-          res.status(201).send({ data: project });
+  
+          // Return the created project in the response
+          return res.status(201).json({ data: project });
+  
         } catch (e) {
           console.error('Error while creating project:', e);
-          next(new InternalServerError()); // Include error message for debugging
+  
+          if (e instanceof ZodError) {
+            // Handle Zod validation errors
+            return res.status(400).json({
+              error: 'Invalid request parameters',
+              details: e.errors,
+            });
+          }
+  
+          // Handle any other errors
+          next(new InternalServerError());
         }
       },
     ];
   }
+  
+  
 
   updateProject() {
     return [

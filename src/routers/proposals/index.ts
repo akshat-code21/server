@@ -1,4 +1,4 @@
-import currentUserMiddleware from 'middlewares/currentuser.middleware';
+import {currentUserMiddleware} from 'middlewares/currentuser.middleware';
 import AbstractRouter from '..';
 import ProposalsController from 'controllers/proposals.controller';
 

@@ -19,7 +19,7 @@ export const createProposalSchema = z.object({
 });
 
 export const createProjectSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  type: z.nativeEnum(ProjectType),
+  name: z.string().min(1, { message: "Name is required" }), // Ensure name is provided
+  description: z.string().min(1, { message: "Description is required" }), // Ensure description is provided
+  type: z.nativeEnum(ProjectType), // Validate against your enum
 });

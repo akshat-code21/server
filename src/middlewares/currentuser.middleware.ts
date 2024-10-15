@@ -1,42 +1,49 @@
-import { AuthenticationError } from 'errors/authentication-error';
-import { UserNotFoundError } from 'errors/user-not-found-error';
+// import { AuthenticationError } from 'errors/authentication-error';
+// import { UserNotFoundError } from 'errors/user-not-found-error';
 import { NextFunction, Request, Response } from 'express';
 import { IContext } from 'interfaces/index';
 import Jwt from 'utils/jwt.util';
 
 export const currentUserMiddleware = (ctx: IContext) => {
   return async (req: Request, res: Response, next: NextFunction) => {
+
     if (!req.headers.authorization) {
-      return res.status(401).json(new AuthenticationError('Please provide a valid token'));
-    }
-    let decoded;
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      decoded = Jwt.verify(token);
-      res.json({
-        token : token
-      })
-    } catch (error) {
-      console.log('Error while decoding: ', error);
-      return res.status(403).send(new AuthenticationError('Please provide a valid token'));
+      console.log('No authorization header provided');
+      return res.status(401).json({ error: 'Please provide a valid token' });
     }
 
     try {
+      const token = req.headers.authorization.split(' ')[1]; // Extract token from "Bearer token"
+      if (!token) {
+        console.log('Token is missing');
+        return res.status(401).json({ error: 'Token is missing or invalid' });
+      }
+
+      // Verify the JWT token
+      const decoded = Jwt.verify(token) // Ensure the secret is being passed correctly
+
       const user = await ctx.users.findUnqiue({
         where: {
           id: decoded.id,
         },
       });
+
       if (!user) {
-        return res.status(404).json(new UserNotFoundError('User not found'));
+        console.log(`User not found for id: ${decoded.id}`);
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      req.currentUserId = user.id;
-      next();
+      req.currentUserId = user.id; // Attach the user ID to the request for downstream use
+      next(); // Pass control to the next middleware or route handler
+
     } catch (error) {
-      return res.status(500).json(new AuthenticationError('Authentication failed'));
+      console.error('Error in currentUserMiddleware:', error);
+      return res.status(401).json({
+        error: error instanceof Error ? error.message : 'Authentication failed',
+      });
     }
   };
 };
 
-export default currentUserMiddleware;
+
+

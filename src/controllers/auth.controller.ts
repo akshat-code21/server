@@ -6,6 +6,7 @@ import { InternalServerError } from 'errors/internal-server-error';
 import Context from 'models/Context';
 import OTP from 'libs/otp.lib';
 import emailService from 'libs/email.lib';
+import Jwt from 'utils/jwt.util';
 
 export default class AuthController extends AbstractController {
   constructor(ctx: Context) {
@@ -125,12 +126,13 @@ export default class AuthController extends AbstractController {
     ];
   }
 
+  
   signin() {
     return [
       validateRequestBody(z.object({ email: z.string().email(), otp: z.string() })),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const { email, otp } = req.body as unknown as { email: string; otp: string };
+          const { email, otp } = req.body as { email: string; otp: string };
           const otpRecord = await this.ctx.OTP.findUnique({
             where: {
               email,
@@ -161,11 +163,27 @@ export default class AuthController extends AbstractController {
             },
           });
 
+          // Find or create user
+          let user = await this.ctx.users.findUnqiue({
+            where: { email },
+          });
+
+          if (!user) {
+            res.json({
+              msg :"Please sign up first"
+            })
+            return ;
+          }
+
+          // Generate JWT token
+          const token = Jwt.sign(user.id);
+
           res.status(200).json({
             msg: 'Sign-in successful',
+            token: token,
           });
         } catch (e) {
-          console.error(e);
+          console.error('Error in signin:', e);
           next(new InternalServerError());
         }
       },
