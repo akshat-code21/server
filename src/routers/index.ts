@@ -48,8 +48,10 @@ export default abstract class AbstractRouter {
   }
 
   registerHealthRoutes() {
-    this.registerGET('/', [this.health]);
-    this.registerGET('/health', [this.health]);
+    if (this.#path === '/') {
+      this.registerGET('/', [this.health]);
+      this.registerGET('/health', [this.health]);
+    }
   }
 
   abstract registerMiddlewares(): (() => RequestHandler)[];

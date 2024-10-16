@@ -1,9 +1,8 @@
-import {currentUserMiddleware} from 'middlewares/currentuser.middleware';
+import { currentUserMiddleware } from 'middlewares/currentuser.middleware';
 import AbstractRouter from '..';
 import ProjectsController from 'controllers/projects.controller';
 
 export default class ProjectsRouter extends AbstractRouter {
-
   registerMiddlewares() {
     return [() => currentUserMiddleware(this.ctx)];
   }

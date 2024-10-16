@@ -16,7 +16,7 @@ export default class ProjectsModel implements IProjectsModel {
     return this.db.client.projects.findFirst(args);
   }
 
-  async findUnqiue(args: Prisma.ProjectsFindUniqueArgs): Promise<Projects | null> {
+  async findUnique(args: Prisma.ProjectsFindUniqueArgs): Promise<Projects | null> {
     return this.db.client.projects.findUnique(args);
   }
 

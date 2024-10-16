@@ -49,7 +49,7 @@ export const validateRequestParams = (schema: AnyZodObject) => {
       req.params = schema.parse(req.params);
       next();
     } catch (e) {
-      console.log('Params');
+      console.log('Params :'+e);
       if (e instanceof ZodError) {
         return next(new RequestValidationError(e));
       }

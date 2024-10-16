@@ -8,7 +8,7 @@ export interface IProjectsModel {
 
   findFirst(args: Prisma.ProjectsFindFirstArgs): Promise<Projects | null>;
 
-  findUnqiue(args: Prisma.ProjectsFindUniqueArgs): Promise<Projects | null>;
+  findUnique(args: Prisma.ProjectsFindUniqueArgs): Promise<Projects | null>;
 
   findMany(args: Prisma.ProjectsFindManyArgs): Promise<Projects[]>;
 
