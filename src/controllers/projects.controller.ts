@@ -18,13 +18,9 @@ const getProjectParamsSchema = z.object({
 export default class ProjectsController extends AbstractController {
   getProjects() {
     return [
-      async (req: Request, res: Response, next: NextFunction) => {
-        console.log('here at getProjects');
+      async (req: Request, res: Response, next: NextFunction) => {        
         try {
-          console.log('Request Headers:', req.headers);
           const userId = req.currentUserId;
-          console.log('User ID:', userId);
-
           if (!userId) {
             return res.status(400).json({ error: 'User ID not found in request.' });
           }
