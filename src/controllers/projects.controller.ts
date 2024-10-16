@@ -7,15 +7,12 @@ import { createProjectSchema } from 'zod_schema';
 import { ProjectType } from '@prisma/client';
 
 const getProjectParamsSchema = z.object({
-  id: z.string().refine((val) => !isNaN(Number(val)), {
-    message: "ID must be a number",
-  }).transform((val) => Number(val)), // Converts the string to a number
-});
-
-const updateProjectSchema = z.object({
-  name: z.string().optional(), // Optional fields for update
-  description: z.string().optional(),
-  type: z.nativeEnum(ProjectType).optional(),
+  id: z
+    .string()
+    .refine((val) => !isNaN(Number(val)), {
+      message: 'ID must be a number',
+    })
+    .transform((val) => Number(val)),
 });
 
 export default class ProjectsController extends AbstractController {
@@ -54,14 +51,14 @@ export default class ProjectsController extends AbstractController {
 
   getProject() {
     return [
-      validateRequestParams(getProjectParamsSchema), // Use the correct schema here
+      validateRequestParams(getProjectParamsSchema),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { id } = req.params as unknown as { id: number };
           console.log('Fetching project with ID:', id);
           const project = await this.ctx.projects.findUnique({
-            where: { 
-              id: id 
+            where: {
+              id: id,
             },
           });
           if (!project) {
@@ -78,28 +75,20 @@ export default class ProjectsController extends AbstractController {
 
   createProject() {
     return [
-      validateRequestBody(createProjectSchema), // Validate request body with Zod
+      validateRequestBody(createProjectSchema),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const userId = req.currentUserId as number; // Get the userId from the middleware
-
-          // Add validation logs to debug request body issues
-          console.log('Request body:', req.body);
-
+          const userId = req.currentUserId as number;
           const { name, description, type } = req.body as {
             name: string;
             description: string;
             type: ProjectType;
           };
-
-          // Check for missing required fields
           if (!name || !description || !type) {
             return res.status(400).json({
               error: 'Missing required fields: name, description, or type',
             });
           }
-
-          // Create the project and associate it with the current user
           const project = await this.ctx.projects.create({
             data: {
               name,
@@ -107,26 +96,21 @@ export default class ProjectsController extends AbstractController {
               type,
               proposedBy: {
                 connect: {
-                  id: userId, // Associate with the user creating the project
+                  id: userId,
                 },
               },
             },
           });
-
-          // Return the created project in the response
           return res.status(201).json({ data: project });
         } catch (e) {
           console.error('Error while creating project:', e);
 
           if (e instanceof ZodError) {
-            // Handle Zod validation errors
             return res.status(400).json({
               error: 'Invalid request parameters',
               details: e.errors,
             });
           }
-
-          // Handle any other errors
           next(new InternalServerError());
         }
       },
@@ -135,63 +119,59 @@ export default class ProjectsController extends AbstractController {
 
   updateProject() {
     return [
-      validateRequestParams(getProjectParamsSchema), // Ensure ID is a positive integer
-      validateRequestBody(updateProjectSchema), // Validate request body with Zod
+      validateRequestParams(getProjectParamsSchema),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { id } = req.params as unknown as { id: number };
           const { name, description, type } = req.body;
-  
-          // Fetch the existing project
+
           const existingProject = await this.ctx.projects.findUnique({
             where: { id },
           });
-  
+
           if (!existingProject) {
             return res.status(404).json({ error: 'Project not found.' });
           }
-  
-          // Update the project with provided fields
+
           const updatedProject = await this.ctx.projects.update({
             where: { id },
             data: {
-              name: name ?? existingProject.name, // Use existing name if not provided
-              description: description ?? existingProject.description, // Use existing description if not provided
-              type: type ?? existingProject.type, // Use existing type if not provided
+              name: name ?? existingProject.name,
+              description: description ?? existingProject.description,
+              type: type ?? existingProject.type,
             },
           });
-  
+
           res.status(200).json({ data: updatedProject });
         } catch (e) {
           console.error('Error while updating project:', e);
-  
+
           if (e instanceof ZodError) {
-            // Handle Zod validation errors
             return res.status(400).json({
               error: 'Invalid request parameters',
               details: e.errors,
             });
           }
-  
+
           next(new InternalServerError());
         }
       },
     ];
   }
-  
+
   deleteProject() {
     return [
-      validateRequestParams(getProjectParamsSchema), // Ensure ID is a positive integer
+      validateRequestParams(getProjectParamsSchema),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { id } = req.params as unknown as { id: number };
           const deletedProject = await this.ctx.projects.delete({
             where: { id },
           });
-  
+
           res.sendStatus(204).json({
-            deletedProject
-          }); // No Content response
+            deletedProject,
+          });
         } catch (e) {
           console.error('Error while deleting project:', e);
           next(new InternalServerError());
