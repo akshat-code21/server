@@ -18,7 +18,7 @@ export default class ProposalsController extends AbstractController {
           const proposals = await this.ctx.proposals.findMany({
             where: {},
           });
-          res.status(200).send({ date: proposals });
+          res.status(200).send({ data: proposals });
         } catch (e) {
           console.error(e);
           next(new InternalServerError());
