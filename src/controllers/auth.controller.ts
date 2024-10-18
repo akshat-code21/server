@@ -89,8 +89,6 @@ export default class AuthController extends AbstractController {
         try {
           const { email } = req.body as { email: string };
           const otp = OTP.generate();
-
-          // Database operations wrapped in try-catch for specific error handling
           try {
             await this.ctx.OTP.deleteMany({
               where: { email },
@@ -106,8 +104,6 @@ export default class AuthController extends AbstractController {
             console.error('Database operation failed:', dbError);
             return next(new InternalServerError());
           }
-
-          // Email sending wrapped in try-catch
           try {
             await emailService.sendEmail({ email, otp });
           } catch (emailError) {
@@ -161,9 +157,7 @@ export default class AuthController extends AbstractController {
             where: {
               id: otpRecord.id,
             },
-          });
-
-          // Find or create user
+          }); 
           let user = await this.ctx.users.findUnqiue({
             where: { email },
           });
@@ -174,8 +168,6 @@ export default class AuthController extends AbstractController {
             })
             return ;
           }
-
-          // Generate JWT token
           const token = Jwt.sign(user.id);
 
           res.status(200).json({
@@ -184,6 +176,37 @@ export default class AuthController extends AbstractController {
           });
         } catch (e) {
           console.error('Error in signin:', e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+
+  refreshToken() {
+    return [
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { refreshToken } = req.body;
+  
+          
+          const decoded = Jwt.verify(refreshToken);
+          const userId = decoded.id; 
+  
+          const user = await this.ctx.users.findUnqiue({
+            where: { id: userId },
+          });
+  
+          if (!user) {
+            return res.status(401).json({ msg: 'Unauthorized' });
+          }
+ 
+          const newToken = Jwt.sign(user.id);
+  
+          res.status(200).json({
+            token: newToken,
+          });
+        } catch (e) {
+          console.error('Error refreshing token:', e);
           next(new InternalServerError());
         }
       },
