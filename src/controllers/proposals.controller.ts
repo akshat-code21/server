@@ -48,7 +48,7 @@ export default class ProposalsController extends AbstractController {
   createProposal() {
     return [
       // validateRequestBody(createProposalSchema),
-      upload.single('file'),
+      upload.single('pdf_file'),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { details, resources, impact, projectId } = req.body as unknown as {

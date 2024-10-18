@@ -183,14 +183,15 @@ export default class AuthController extends AbstractController {
   }
 
   refreshToken() {
+    console.log("refreshtoken called");
     return [
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { refreshToken } = req.body;
   
-          
+          // Verify refresh token
           const decoded = Jwt.verify(refreshToken);
-          const userId = decoded.id; 
+          const userId = decoded.id;
   
           const user = await this.ctx.users.findUnqiue({
             where: { id: userId },
@@ -199,11 +200,15 @@ export default class AuthController extends AbstractController {
           if (!user) {
             return res.status(401).json({ msg: 'Unauthorized' });
           }
- 
-          const newToken = Jwt.sign(user.id);
   
+          // Generate new tokens
+          const newToken = Jwt.sign(user.id);
+          const newRefreshToken = Jwt.sign(user.id);
+  
+          // Send new tokens
           res.status(200).json({
             token: newToken,
+            refreshToken: newRefreshToken,
           });
         } catch (e) {
           console.error('Error refreshing token:', e);
@@ -215,9 +220,10 @@ export default class AuthController extends AbstractController {
 
   logout() {
     return [
-      async (req: Request, _: Response, next: NextFunction) => {
+      async (req: Request, res: Response, next: NextFunction) => {
         try {
           req.session.currentUserId = undefined;
+          res.status(200).json({ message: "Logged out successfully" }); 
         } catch (e) {
           console.error(e);
           next(new InternalServerError());
