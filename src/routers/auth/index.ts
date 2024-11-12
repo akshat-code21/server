@@ -11,8 +11,11 @@ export default class AuthRouter extends AbstractRouter {
 
     this.registerPOST('/register/user', authController.registerUser());
     this.registerPOST('/register/institution', authController.registerInstitution());
+    this.registerPOST('/register/admin', authController.createAdmin());
     this.registerPOST('/sendOTP', authController.sendOTP());
+    this.registerPOST('/sendOTP/admin', authController.sendAdminOTP());
     this.registerPOST('/signin', authController.signin());
+    this.registerPOST('/signin/admin', authController.adminSignin());
     this.registerPOST('/refreshToken', authController.refreshToken());
     this.registerPOST('/logout', authController.logout());
   }
