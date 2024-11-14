@@ -11,7 +11,8 @@ import ProjectsRouter from 'routers/projects';
 import ProposalsRouter from 'routers/proposals';
 import InstitutionsRouter from 'routers/institutions';
 import UsersRouter from 'routers/users';
-import cors from 'cors'; // Import the cors package
+import AdminRouter from 'routers/admins'; // Import the AdminRouter
+import cors from 'cors';
 
 export default class Server {
   db: IDatabase;
@@ -25,7 +26,6 @@ export default class Server {
   #registerHandlers() {
     this.engine.use(logger);
     this.engine.use(Express.json());
-    
     
     this.engine.use(cors({
       origin: 'http://localhost:5173', // Replace with your frontend URL
@@ -64,6 +64,9 @@ export default class Server {
 
     const institutionsRouter = new InstitutionsRouter(ctx, this.engine, '/institutions');
     institutionsRouter.register();
+
+    const adminRouter = new AdminRouter(ctx, this.engine, '/admin'); // Instantiate AdminRouter
+    adminRouter.register(); // Register AdminRouter at /admin
 
     this.engine.all('*', async (__: Request, _: Response, next: NextFunction) => {
       next(new NotFoundError());

@@ -18,34 +18,35 @@ export default class AuthController extends AbstractController {
       validateRequestBody(z.object({ name: z.string(), email: z.string().email(), phoneNumber: z.string() })),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const { name, email, phoneNumber } = req.body as unknown as { name: string; email: string; phoneNumber: string };
-          let existingUser = await this.ctx.users.findFirst({
-            where: {
-              OR: [{ phone: phoneNumber }, { email }],
-            },
+          const { name, email, phoneNumber } = req.body;
+          
+          // Check if user already exists by phone or email
+          const existingUser = await this.ctx.users.findFirst({
+            where: { OR: [{ phone: phoneNumber }, { email }] },
           });
-
+  
           if (existingUser) {
             return res.status(409).json({ error: 'User with this phone or email already exists' });
           }
-
-          existingUser = await this.ctx.users.create({
-            data: {
-              name,
-              email,
-              phone: phoneNumber,
-            },
+  
+          // Create new user
+          const newUser = await this.ctx.users.create({
+            data: { name, email, phone: phoneNumber },
           });
-
-          res.status(201).json({ msg: 'User created successfully' });
+  
+          // Assign role to user in userRoles table
+          await this.ctx.userRoles.create({
+            data: { userId: newUser.id, roleId: 1 }, // `roleId: 1` for regular user
+          });
+  
+          res.status(201).json({ msg: 'User created successfully', data: newUser });
         } catch (e) {
-          console.error(e);
+          console.error('Error registering user:', e);
           next(new InternalServerError());
         }
       },
     ];
   }
-
   registerInstitution() {
     return [
       validateRequestBody(
@@ -128,6 +129,7 @@ export default class AuthController extends AbstractController {
         try {
           const { email } = req.body;
 
+// <<<<<<< master
           // Authenticate user (this would be your actual user validation logic)
           const user = await this.ctx.users.findUnqiue({
             where: { email }, // Replace with secure password validation
@@ -135,6 +137,22 @@ export default class AuthController extends AbstractController {
 
           if (!user) {
             return res.status(401).json({ msg: 'Invalid credentials' });
+// =======
+          await this.ctx.OTP.delete({
+            where: {
+              id: otpRecord.id,
+            },
+          });
+          let user = await this.ctx.users.findUnqiue({
+            where: { email },
+          });
+
+          if (!user) {
+            res.json({
+              msg: 'Please sign up first',
+            });
+            return;
+// >>>>>>> master
           }
 
           // Generate tokens
@@ -155,12 +173,16 @@ export default class AuthController extends AbstractController {
   }
 
   refreshToken() {
+// <<<<<<< master
     console.log('refreshtoken called');
+=======
+// >>>>>>> master
     return [
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           // Extract the refresh token from the request body
           const { refreshToken } = req.body;
+// <<<<<<< master
           console.log(refreshToken);
 
           // Verify and decode the refresh token
@@ -173,18 +195,35 @@ export default class AuthController extends AbstractController {
             where: { id: userId },
           });
           console.log(user);
+// =======
+
+          // Verify refresh token
+          const decoded = Jwt.verify(refreshToken);
+          const userId = decoded.id;
+
+          const user = await this.ctx.users.findUnqiue({
+            where: { id: userId },
+          });
+// >>>>>>> master
 
           if (!user) {
             return res.status(401).json({ msg: 'Unauthorized' });
           }
 
           // Generate new tokens
+// <<<<<<< master
           const newToken = Jwt.sign(user.id); // Access token
           const newRefreshToken = Jwt.sign(user.id); // Refresh token
           console.log(newToken);
           console.log(newRefreshToken);
 
           // Send the new tokens back
+// =======
+          const newToken = Jwt.sign(user.id);
+          const newRefreshToken = Jwt.sign(user.id);
+
+          // Send new tokens
+// >>>>>>> master
           res.status(200).json({
             token: newToken,
             refreshToken: newRefreshToken,
@@ -205,7 +244,6 @@ export default class AuthController extends AbstractController {
       },
     ];
   }
-
   logout() {
     return [
       async (req: Request, res: Response, next: NextFunction) => {
@@ -214,6 +252,108 @@ export default class AuthController extends AbstractController {
           res.status(200).json({ message: 'Logged out successfully' });
         } catch (e) {
           console.error(e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+  
+  registerAdmin() {
+    return [
+      validateRequestBody(z.object({ name: z.string(), email: z.string().email(), phoneNumber: z.string() })),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { name, email, phoneNumber } = req.body;
+          
+          // Check if admin already exists by phone or email
+          const existingAdmin = await this.ctx.users.findFirst({
+            where: { OR: [{ phone: phoneNumber }, { email }] },
+          });
+  
+          if (existingAdmin) {
+            return res.status(409).json({ error: 'Admin with this phone or email already exists' });
+          }
+  
+          // Fetch the role ID for the 'admin' role from the Roles table
+          const adminRole = await this.ctx.roles.findFirst({
+            where: { name: 'admin' },
+        });
+
+          console.log(adminRole);
+
+          if (!adminRole) {
+            return res.status(500).json({ error: 'Admin role not found in Roles table.' });
+          }
+
+          // Create new admin
+          const newAdmin = await this.ctx.users.create({
+            data: { name, email, phone: phoneNumber },
+          });
+  
+          // Assign the admin role in the UserRoles table
+          await this.ctx.userRoles.create({
+            data: { userId: newAdmin.id, roleId: adminRole.id },
+          });
+  
+          res.status(201).json({ msg: 'Admin created successfully', data: newAdmin });
+        } catch (e) {
+          console.error('Error creating admin:', e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+
+
+  sendAdminOTP() {
+    return [
+      validateRequestBody(z.object({ email: z.string().email() })),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { email } = req.body;
+          const otp = OTP.generate();
+
+          await this.ctx.OTP.deleteMany({ where: { email } });
+          await this.ctx.OTP.create({ data: { email, otp } });
+
+          await emailService.sendEmail({ email, otp });
+
+          res.status(200).json({ msg: 'Admin OTP sent successfully' });
+        } catch (e) {
+          console.error('Error in sendAdminOTP:', e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+
+  adminSignin() {
+    return [
+      validateRequestBody(z.object({ email: z.string().email(), otp: z.string() })),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { email, otp } = req.body;
+          const otpRecord = await this.ctx.OTP.findUnique({ where: { email } });
+
+          if (!otpRecord || !OTP.verify(otp, otpRecord) || OTP.isExpired(otpRecord)) {
+            return res.status(400).json({ msg: 'Invalid or expired OTP' });
+          }
+
+          await this.ctx.OTP.delete({ where: { id: otpRecord.id } });
+
+          const admin = await this.ctx.users.findUnqiue({
+            where: { email },
+            select: { id: true },
+          });
+
+          if (!admin) {
+            return res.status(403).json({ msg: 'Access denied. Not an admin account' });
+          }
+
+          const token = Jwt.sign(admin.id);
+          res.status(200).json({ msg: 'Admin sign-in successful', token });
+        } catch (e) {
+          console.error('Error in adminSignin:', e);
           next(new InternalServerError());
         }
       },
