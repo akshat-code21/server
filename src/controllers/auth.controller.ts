@@ -93,7 +93,7 @@ export default class AuthController extends AbstractController {
             await this.ctx.OTP.deleteMany({
               where: { email },
             });
-            
+
             await this.ctx.OTP.create({
               data: {
                 email,
@@ -122,60 +122,32 @@ export default class AuthController extends AbstractController {
     ];
   }
 
-  
   signin() {
     return [
-      validateRequestBody(z.object({ email: z.string().email(), otp: z.string() })),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const { email, otp } = req.body as { email: string; otp: string };
-          const otpRecord = await this.ctx.OTP.findUnique({
-            where: {
-              email,
-            },
-          });
+          const { email } = req.body;
 
-          if (!otpRecord) {
-            return res.status(400).json({
-              msg: 'OTP Record not found',
-            });
-          }
-
-          if (!OTP.verify(otp, otpRecord)) {
-            return res.status(400).json({
-              msg: 'Invalid OTP',
-            });
-          }
-
-          if (OTP.isExpired(otpRecord)) {
-            return res.status(400).json({
-              msg: 'OTP has expired',
-            });
-          }
-
-          await this.ctx.OTP.delete({
-            where: {
-              id: otpRecord.id,
-            },
-          }); 
-          let user = await this.ctx.users.findUnqiue({
-            where: { email },
+          // Authenticate user (this would be your actual user validation logic)
+          const user = await this.ctx.users.findUnqiue({
+            where: { email }, // Replace with secure password validation
           });
 
           if (!user) {
-            res.json({
-              msg :"Please sign up first"
-            })
-            return ;
+            return res.status(401).json({ msg: 'Invalid credentials' });
           }
-          const token = Jwt.sign(user.id);
 
+          // Generate tokens
+          const accessToken = Jwt.sign(user.id); // Short expiration
+          const refreshToken = Jwt.refreshSign(user.id); // Longer expiration
+
+          // Send tokens to client
           res.status(200).json({
-            msg: 'Sign-in successful',
-            token: token,
+            token: accessToken,
+            refreshToken: refreshToken,
           });
         } catch (e) {
-          console.error('Error in signin:', e);
+          console.error('Error during login:', e);
           next(new InternalServerError());
         }
       },
@@ -183,35 +155,51 @@ export default class AuthController extends AbstractController {
   }
 
   refreshToken() {
-    console.log("refreshtoken called");
+    console.log('refreshtoken called');
     return [
       async (req: Request, res: Response, next: NextFunction) => {
         try {
+          // Extract the refresh token from the request body
           const { refreshToken } = req.body;
-  
-          // Verify refresh token
-          const decoded = Jwt.verify(refreshToken);
+          console.log(refreshToken);
+
+          // Verify and decode the refresh token
+          const decoded = Jwt.verify(refreshToken); // This will throw if the token is expired
           const userId = decoded.id;
-  
+          console.log(userId);
+
+          // Check for user existence
           const user = await this.ctx.users.findUnqiue({
             where: { id: userId },
           });
-  
+          console.log(user);
+
           if (!user) {
             return res.status(401).json({ msg: 'Unauthorized' });
           }
-  
+
           // Generate new tokens
-          const newToken = Jwt.sign(user.id);
-          const newRefreshToken = Jwt.sign(user.id);
-  
-          // Send new tokens
+          const newToken = Jwt.sign(user.id); // Access token
+          const newRefreshToken = Jwt.sign(user.id); // Refresh token
+          console.log(newToken);
+          console.log(newRefreshToken);
+
+          // Send the new tokens back
           res.status(200).json({
             token: newToken,
             refreshToken: newRefreshToken,
           });
         } catch (e) {
-          console.error('Error refreshing token:', e);
+          // Cast `e` as an `Error` for TypeScript to recognize its properties
+          const error = e as Error;
+
+          console.error('Error refreshing token:', error);
+
+          if (error.name === 'TokenExpiredError') {
+            // Handle expired refresh token
+            return res.status(403).json({ msg: 'Refresh token expired' });
+          }
+
           next(new InternalServerError());
         }
       },
@@ -223,7 +211,7 @@ export default class AuthController extends AbstractController {
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           req.session.currentUserId = undefined;
-          res.status(200).json({ message: "Logged out successfully" }); 
+          res.status(200).json({ message: 'Logged out successfully' });
         } catch (e) {
           console.error(e);
           next(new InternalServerError());
