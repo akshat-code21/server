@@ -10,32 +10,29 @@ type Role = {
 
 export const seedRoles = async (prisma: PrismaClient) => {
     const path = `prisma/seed/data/roles.json`;
-    if (!existsSync(path)) return;
-    console.log(`\nseeding for roles\n`);
+    if (!existsSync(path)) {
+        console.log(`Roles data file not found at ${path}, skipping seeding.`);
+        return;
+    }
+
+    console.log(`\nSeeding roles...\n`);
     const roles = JSON.parse(readFileSync(path, 'utf-8')) as Role[];
 
-    for await (const role of roles) {
+    for (const role of roles) {
         const existingRole = await prisma.roles.findFirst({
-            where: {
-                AND: [
-                    { name: role.name },
-                    { value: role.value },
-                ]
-            }
+            where: { value: role.value },
         });
-
-        if (existingRole) {
-            console.log(`name: ${role.name} already exists, skipping...`);
-            continue;
+    
+        if (!existingRole) {
+            await prisma.roles.create({
+                data: {
+                    name: role.name,
+                    value: role.value,
+                },
+            });
+            console.log(`Role "${role.name}" with value "${role.value}" seeded ✅`);
+        } else {
+            console.log(`Role "${role.name}" with value "${role.value}" already exists, skipping...`);
         }
-
-        await prisma.roles.create({
-            data: {
-                name: role.name,
-                value: role.value,
-            }
-        });
-
-        console.log(`name: ${role.name} seeded ✅`);
     }
-}
+};
