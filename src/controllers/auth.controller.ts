@@ -127,17 +127,31 @@ export default class AuthController extends AbstractController {
     return [
       async (req: Request, res: Response, next: NextFunction) => {
         try {
-          const { email } = req.body;
-
-// <<<<<<< master
-          // Authenticate user (this would be your actual user validation logic)
-          const user = await this.ctx.users.findUnqiue({
-            where: { email }, // Replace with secure password validation
+          const { email, otp } = req.body as { email: string; otp: string };
+          const otpRecord = await this.ctx.OTP.findUnique({
+            where: {
+              email,
+            },
           });
 
-          if (!user) {
-            return res.status(401).json({ msg: 'Invalid credentials' });
-// =======
+          if (!otpRecord) {
+            return res.status(400).json({
+              msg: 'OTP Record not found',
+            });
+          }
+
+          if (!OTP.verify(otp, otpRecord)) {
+            return res.status(400).json({
+              msg: 'Invalid OTP',
+            });
+          }
+
+          if (OTP.isExpired(otpRecord)) {
+            return res.status(400).json({
+              msg: 'OTP has expired',
+            });
+          }
+
           await this.ctx.OTP.delete({
             where: {
               id: otpRecord.id,
@@ -152,7 +166,6 @@ export default class AuthController extends AbstractController {
               msg: 'Please sign up first',
             });
             return;
-// >>>>>>> master
           }
 
           // Generate tokens
@@ -175,7 +188,7 @@ export default class AuthController extends AbstractController {
   refreshToken() {
 // <<<<<<< master
     console.log('refreshtoken called');
-=======
+// =======
 // >>>>>>> master
     return [
       async (req: Request, res: Response, next: NextFunction) => {
@@ -198,12 +211,12 @@ export default class AuthController extends AbstractController {
 // =======
 
           // Verify refresh token
-          const decoded = Jwt.verify(refreshToken);
-          const userId = decoded.id;
+          // const decoded = Jwt.verify(refreshToken);
+          // const userId = decoded.id;
 
-          const user = await this.ctx.users.findUnqiue({
-            where: { id: userId },
-          });
+          // const user = await this.ctx.users.findUnqiue({
+          //   where: { id: userId },
+          // });
 // >>>>>>> master
 
           if (!user) {
@@ -219,8 +232,8 @@ export default class AuthController extends AbstractController {
 
           // Send the new tokens back
 // =======
-          const newToken = Jwt.sign(user.id);
-          const newRefreshToken = Jwt.sign(user.id);
+          // const newToken = Jwt.sign(user.id);
+          // const newRefreshToken = Jwt.sign(user.id);
 
           // Send new tokens
 // >>>>>>> master
