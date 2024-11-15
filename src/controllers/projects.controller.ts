@@ -25,13 +25,37 @@ export default class ProjectsController extends AbstractController {
             return res.status(400).json({ error: 'User ID not found in request.' });
           }
 
-          const projects = await this.ctx.projects.findMany({
+          const userProjects = await this.ctx.projects.findMany({
             where: {
-              proposedBy: {
-                id: userId,
+              proposedById: userId,
+            },
+          });
+  
+          // Fetch admin user IDs from UserRoles (assuming value 0 corresponds to admins)
+          const adminUserRoles = await this.ctx.userRoles.findMany({
+            where: {
+              roleId: 0,  // 0 corresponds to admin role
+            },
+            select: {
+              userId: true, // Fetching the userId of the admins
+            },
+          });
+          console.log(adminUserRoles);
+          // Extract userIds of admin users
+          const adminUserIds = adminUserRoles.map((role) => role.userId);
+          console.log(adminUserIds);
+          // Fetch projects created by admin users
+          const adminProjects = await this.ctx.projects.findMany({
+            where: {
+              proposedById: {
+                in: adminUserIds,  // Filter projects by admin user IDs
               },
             },
           });
+          console.log(adminProjects);
+          // Combine both user projects and admin projects
+          const projects = [...userProjects, ...adminProjects];
+  
 
           console.log('Fetched projects:', projects);
 
