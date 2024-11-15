@@ -18,50 +18,50 @@ const getProjectParamsSchema = z.object({
 export default class ProjectsController extends AbstractController {
   getProjects() {
     return [
-      async (req: Request, res: Response, next: NextFunction) => {        
+      async (req: Request, res: Response, next: NextFunction) => {
         try {
           const userId = req.currentUserId;
           if (!userId) {
             return res.status(400).json({ error: 'User ID not found in request.' });
           }
-
-          const userProjects = await this.ctx.projects.findMany({
-            where: {
-              proposedById: userId,
-            },
-          });
   
           // Fetch admin user IDs from UserRoles (assuming value 0 corresponds to admins)
           const adminUserRoles = await this.ctx.userRoles.findMany({
             where: {
-              roleId: 0,  // 0 corresponds to admin role
+              roleId: 0, // 0 corresponds to admin role
             },
             select: {
               userId: true, // Fetching the userId of the admins
             },
           });
-          console.log(adminUserRoles);
+  
           // Extract userIds of admin users
           const adminUserIds = adminUserRoles.map((role) => role.userId);
-          console.log(adminUserIds);
+  
+          // Determine if the current user is an admin
+          const isAdmin = adminUserIds.includes(userId);
+  
+          // Fetch user projects
+          const userProjects = await this.ctx.projects.findMany({
+            where: {
+              proposedById: isAdmin ? undefined : userId, // Exclude admin projects for admin user
+            },
+          });
+  
           // Fetch projects created by admin users
           const adminProjects = await this.ctx.projects.findMany({
             where: {
               proposedById: {
-                in: adminUserIds,  // Filter projects by admin user IDs
+                in: adminUserIds, // Filter projects by admin user IDs
               },
             },
           });
-          console.log(adminProjects);
+  
           // Combine both user projects and admin projects
           const projects = [...userProjects, ...adminProjects];
   
-
-          console.log('Fetched projects:', projects);
-
           res.status(200).json({ data: projects });
         } catch (e) {
-          console.log('here at error');
           console.error('Error fetching projects:', e);
           next(new InternalServerError());
         }
