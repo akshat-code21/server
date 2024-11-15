@@ -16,35 +16,44 @@ export default class AuthController extends AbstractController {
   registerUser() {
     return [
       validateRequestBody(z.object({ name: z.string(), email: z.string().email(), phoneNumber: z.string() })),
-      async (req: Request, res: Response, next: NextFunction) => {
-        try {
-          const { name, email, phoneNumber } = req.body;
-          
-          // Check if user already exists by phone or email
-          const existingUser = await this.ctx.users.findFirst({
-            where: { OR: [{ phone: phoneNumber }, { email }] },
-          });
-  
-          if (existingUser) {
-            return res.status(409).json({ error: 'User with this phone or email already exists' });
-          }
-  
-          // Create new user
-          const newUser = await this.ctx.users.create({
-            data: { name, email, phone: phoneNumber },
-          });
-  
-          // Assign role to user in userRoles table
-          await this.ctx.userRoles.create({
-            data: { userId: newUser.id, roleId: 1 }, // `roleId: 1` for regular user
-          });
-  
-          res.status(201).json({ msg: 'User created successfully', data: newUser });
-        } catch (e) {
-          console.error('Error registering user:', e);
-          next(new InternalServerError());
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { name, email, phoneNumber } = req.body;
+        
+        // Check if user already exists by phone or email
+        const existingUser = await this.ctx.users.findFirst({
+          where: { OR: [{ phone: phoneNumber }, { email }] },
+        });
+
+        if (existingUser) {
+          return res.status(409).json({ error: 'User with this phone or email already exists' });
         }
-      },
+
+        // Fetch the role ID for 'user' role from Roles table
+        const userRole = await this.ctx.roles.findFirst({
+          where: { name: 'user' },
+        });
+
+        if (!userRole) {
+          return res.status(500).json({ error: 'User role not found in Roles table.' });
+        }
+
+        // Create new user
+        const newUser = await this.ctx.users.create({
+          data: { name, email, phone: phoneNumber },
+        });
+
+        // Assign role to user in userRoles table
+        await this.ctx.userRoles.create({
+          data: { userId: newUser.id, roleId: userRole.id },
+        });
+
+        res.status(201).json({ msg: 'User created successfully', data: newUser });
+      } catch (e) {
+        console.error('Error registering user:', e);
+        next(new InternalServerError());
+      }
+    },
     ];
   }
   registerInstitution() {
@@ -274,46 +283,36 @@ export default class AuthController extends AbstractController {
   registerAdmin() {
     return [
       validateRequestBody(z.object({ name: z.string(), email: z.string().email(), phoneNumber: z.string() })),
-      async (req: Request, res: Response, next: NextFunction) => {
-        try {
-          const { name, email, phoneNumber } = req.body;
-          
-          // Check if admin already exists by phone or email
-          const existingAdmin = await this.ctx.users.findFirst({
-            where: { OR: [{ phone: phoneNumber }, { email }] },
-          });
-  
-          if (existingAdmin) {
-            return res.status(409).json({ error: 'Admin with this phone or email already exists' });
-          }
-  
-          // Fetch the role ID for the 'admin' role from the Roles table
-          const adminRole = await this.ctx.roles.findFirst({
-            where: { name: 'admin' },
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { name, email, phoneNumber } = req.body;
+        const existingAdmin = await this.ctx.users.findFirst({
+          where: { OR: [{ phone: phoneNumber }, { email }] },
         });
 
-          console.log(adminRole);
-
-          if (!adminRole) {
-            return res.status(500).json({ error: 'Admin role not found in Roles table.' });
-          }
-
-          // Create new admin
-          const newAdmin = await this.ctx.users.create({
-            data: { name, email, phone: phoneNumber },
-          });
-  
-          // Assign the admin role in the UserRoles table
-          await this.ctx.userRoles.create({
-            data: { userId: newAdmin.id, roleId: adminRole.id },
-          });
-  
-          res.status(201).json({ msg: 'Admin created successfully', data: newAdmin });
-        } catch (e) {
-          console.error('Error creating admin:', e);
-          next(new InternalServerError());
+        if (existingAdmin) {
+          return res.status(409).json({ error: 'Admin with this phone or email already exists' });
         }
-      },
+        const adminRole = await this.ctx.roles.findFirst({
+          where: { name: 'admin' },
+        });
+        if (!adminRole) {
+          return res.status(500).json({ error: 'Admin role not found in Roles table.' });
+        }
+        const newAdmin = await this.ctx.users.create({
+          data: { name, email, phone: phoneNumber },
+        });
+        console.log(adminRole);
+        await this.ctx.userRoles.create({
+          data: { userId: newAdmin.id, roleId: adminRole.id },
+        });
+
+        res.status(201).json({ msg: 'Admin created successfully', data: newAdmin });
+      } catch (e) {
+        console.error('Error creating admin:', e);
+        next(new InternalServerError());
+      }
+    },
     ];
   }
 
