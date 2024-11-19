@@ -1,27 +1,55 @@
-import { UnauthorizedAccess } from 'errors/unauthorized-access-error';
 import { NextFunction, Request, Response } from 'express';
 import { IContext } from 'interfaces/index';
+import Jwt from 'utils/jwt.util';
 
 export const adminMiddleware = (ctx: IContext) => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.currentUserId;
+    // Check if Authorization header is provided
+    if (!req.headers.authorization) {
+      console.log('No authorization header provided');
+      return res.status(401).json({ error: 'Please provide a valid token' });
+    }
 
     try {
-      const userRole = await ctx.userRoles.findUnique({ where: { userId } });
-      if (!userRole) {
-        return res.status(401).send(new UnauthorizedAccess());
+      const token = req.headers.authorization.split(' ')[1]; // Extract token from "Bearer token"
+      if (!token) {
+        console.log('Token is missing');
+        return res.status(401).json({ error: 'Token is missing or invalid' });
       }
 
-      const role = await ctx.roles.findUnique({ where: { id: userRole.roleId } });
-      if (!role || role.value !== 0) {
-        return res.status(401).send(new UnauthorizedAccess());
+      // Verify the JWT token
+      const decoded = Jwt.verify(token);
+
+      // Fetch user by decoded ID
+      const user = await ctx.users.findUnqiue({
+        where: {
+          id: decoded.id,
+        },
+      });
+
+      if (!user) {
+        console.log(`User not found for id: ${decoded.id}`);
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      next();
+      // Attach the user ID to the request
+      req.currentUserId = user.id;
+      next(); // Pass control to the next middleware or route handler
     } catch (error) {
-      return res.status(500).send(error);
+      console.error('Error in currentUserMiddleware:', error);
+
+      // Check for expired token
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          error: 'Access token expired',
+          message: 'Please refresh your access token',
+        });
+      }
+
+      // Handle other errors
+      return res.status(401).json({
+        error: error instanceof Error ? error.message : 'Authentication failed',
+      });
     }
   };
 };
-
-export default adminMiddleware;

@@ -4,11 +4,12 @@ import { validateRequestParams, validateRequestBody } from 'validators/validateR
 import { InternalServerError } from 'errors/internal-server-error';
 import { z } from 'zod';
 import { ProposalCommentState, ProposalState } from '@prisma/client';
-// import multer from 'multer';
-// import S3 from 'libs/s3.lib';
-// import getEnvVar from 'env/index';
+import multer from 'multer';
+import S3 from 'libs/s3.lib';
+import getEnvVar from 'env/index';
+import { createProposalSchema } from 'zod_schema';
 
-// const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: 'uploads/' });
 
 export default class ProposalsController extends AbstractController {
   getProposals() {
@@ -47,8 +48,8 @@ export default class ProposalsController extends AbstractController {
 
   createProposal() {
     return [
-      // validateRequestBody(createProposalSchema),
-      // upload.single('pdf_file'),
+      validateRequestBody(createProposalSchema),
+      upload.single('pdf_file'),
       async (req: Request, res: Response, next: NextFunction) => {
         try {
           const { details, resources, impact, projectId } = req.body as unknown as {
@@ -58,30 +59,30 @@ export default class ProposalsController extends AbstractController {
             projectId: string;
           };
 
-          // if (!req.file) {
-          //   return res.status(400).send({ error: 'File is required' });
-          // }
+          if (!req.file) {
+            return res.status(400).send({ error: 'File is required' });
+          }
 
-          // const s3Service = new S3(
-          //   getEnvVar('AWS_ACCESS_KEY_ID'),
-          //   getEnvVar('AWS_SECRET_ACCESS_KEY'),
-          //   getEnvVar('AWS_S3_BUCKET_NAME'),
-          //   getEnvVar('AWS_S3_BUCKET_REGION'),
-          // );
+          const s3Service = new S3(
+            getEnvVar('AWS_ACCESS_KEY_ID'),
+            getEnvVar('AWS_SECRET_ACCESS_KEY'),
+            getEnvVar('AWS_S3_BUCKET_NAME'),
+            getEnvVar('AWS_S3_BUCKET_REGION'),
+          );
 
-          // const file = req.file;
-          // const fileBuffer = file.buffer;
-          // const fileName = file.originalname;
+          const file = req.file;
+          const fileBuffer = file.buffer;
+          const fileName = file.originalname;
 
-          // await s3Service.uploadFile(fileBuffer, fileName);
-          // const fileUrl = await s3Service.getPresignedUrl(fileName);
+          await s3Service.uploadFile(fileBuffer, fileName);
+          const fileUrl = await s3Service.getPresignedUrl(fileName);
 
-          // const fileModel = await this.ctx.files.create({
-          //   data: {
-          //     filename: fileName,
-          //     path: fileUrl,
-          //   },
-          // });
+          const fileModel = await this.ctx.files.create({
+            data: {
+              filename: fileName,
+              path: fileUrl,
+            },
+          });
 
           const userId = req.currentUserId as number;
 
@@ -95,12 +96,12 @@ export default class ProposalsController extends AbstractController {
                   id: parseInt(projectId),
                 },
               },
-              file:{},
-              // file: {
-              //   connect: {
-              //     id: fileModel.id,
-              //   },
-              // },
+              // file:{},
+              file: {
+                connect: {
+                  id: fileModel.id,
+                },
+              },
               author: {
                 connect: {
                   id: userId,

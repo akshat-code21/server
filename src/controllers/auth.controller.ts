@@ -324,12 +324,42 @@ export default class AuthController extends AbstractController {
         try {
           const { email } = req.body;
           const otp = OTP.generate();
-
+  
+          // Check if the user exists and if the user has the admin role in the userRoles table
+          const user = await this.ctx.users.findFirst({
+            where: {
+              email,
+            },
+          });
+  
+          // Check if user is found
+          if (!user) {
+            return res
+              .status(403)
+              .json({ msg: 'Invalid: Email is not associated with any user' });
+          }
+  
+          // Query userRoles table to check if the user has an admin role
+          const userRole = await this.ctx.userRoles.findFirst({
+            where: {
+              userId: user.id, // Assuming `userId` is the foreign key linking `userRoles` to `Users`
+              roleId: 0, // Check if the role is admin (value: 0 corresponds to admin role)
+            },
+          });
+          console.log(userRole);
+          // If no admin role is found, return an "Invalid" error message
+          if (!userRole) {
+            return res
+              .status(403)
+              .json({ msg: 'Invalid: Email is not associated with an admin account' });
+          }
+  
+          // Proceed to send OTP
           await this.ctx.OTP.deleteMany({ where: { email } });
           await this.ctx.OTP.create({ data: { email, otp } });
-
+  
           await emailService.sendEmail({ email, otp });
-
+  
           res.status(200).json({ msg: 'Admin OTP sent successfully' });
         } catch (e) {
           console.error('Error in sendAdminOTP:', e);
@@ -338,6 +368,11 @@ export default class AuthController extends AbstractController {
       },
     ];
   }
+  
+  
+  
+  
+  
 
   adminSignin() {
     return [
@@ -363,7 +398,8 @@ export default class AuthController extends AbstractController {
           }
 
           const token = Jwt.sign(admin.id);
-          res.status(200).json({ msg: 'Admin sign-in successful', token });
+          const refreshToken = Jwt.refreshSign(admin.id);
+          res.status(200).json({ msg: 'Admin sign-in successful', token,refreshToken });
         } catch (e) {
           console.error('Error in adminSignin:', e);
           next(new InternalServerError());

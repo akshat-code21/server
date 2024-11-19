@@ -104,6 +104,19 @@ export default class AdminController extends AbstractController {
       },
     ];
   }
+  getAllProposals(){
+    return[
+      async(_:Request,res : Response,next:NextFunction)=>{
+        try{
+          const proposals = await this.ctx.projects.findMany({});
+          res.status(200).json({data : proposals});
+        }catch(e){
+          console.error("Error fetching projects : ",e);
+          next(new InternalServerError());
+        }
+      }
+    ]
+  }
 
   getProjectById() {
     return [
@@ -132,6 +145,33 @@ export default class AdminController extends AbstractController {
       },
     ];
   }
+  getProposalById() {
+    return [
+      validateRequestParams(
+        z.object({
+          id: z
+            .string()
+            .refine((val) => !isNaN(Number(val)), {
+              message: 'ID must be a number',
+            })
+            .transform((val) => Number(val)),
+        })
+      ),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { id } = req.params as unknown as { id: number };
+          const proposal = await this.ctx.proposals.findUnqiue({ where: { id } });
+          if (!proposal) {
+            return res.status(404).json({ error: 'proposal not found' });
+          }
+          res.status(200).json({ data: proposal });
+        } catch (e) {
+          console.error('Error fetching proposal:', e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
 
   createProject() {
     return [
@@ -144,16 +184,24 @@ export default class AdminController extends AbstractController {
             description: string;
             type: ProjectType;
           };
-
+  
+          // Ensure adminId is present and valid
+          if (!adminId) {
+            return res.status(400).json({ msg: 'Admin ID is required' });
+          }
+  
+          // Create the project and connect the proposedBy field to the admin user
           const project = await this.ctx.projects.create({
             data: {
               name,
               description,
               type,
-              proposedBy: { connect: { id: adminId } },
+              proposedBy: {
+                connect: { id: adminId }, // Ensure 'id' is passed in the correct format
+              },
             },
           });
-
+  
           res.status(201).json({ data: project });
         } catch (e) {
           console.error('Error creating project:', e);
@@ -163,6 +211,80 @@ export default class AdminController extends AbstractController {
               details: e.errors,
             });
           }
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+  
+
+  createProposal(){
+    return [
+      // validateRequestBody(createProposalSchema),
+      // upload.single('pdf_file'),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { details, resources, impact, projectId } = req.body as unknown as {
+            details: string;
+            resources: string;
+            impact: string;
+            projectId: string;
+          };
+
+          // if (!req.file) {
+          //   return res.status(400).send({ error: 'File is required' });
+          // }
+
+          // const s3Service = new S3(
+          //   getEnvVar('AWS_ACCESS_KEY_ID'),
+          //   getEnvVar('AWS_SECRET_ACCESS_KEY'),
+          //   getEnvVar('AWS_S3_BUCKET_NAME'),
+          //   getEnvVar('AWS_S3_BUCKET_REGION'),
+          // );
+
+          // const file = req.file;
+          // const fileBuffer = file.buffer;
+          // const fileName = file.originalname;
+
+          // await s3Service.uploadFile(fileBuffer, fileName);
+          // const fileUrl = await s3Service.getPresignedUrl(fileName);
+
+          // const fileModel = await this.ctx.files.create({
+          //   data: {
+          //     filename: fileName,
+          //     path: fileUrl,
+          //   },
+          // });
+
+          const userId = req.currentUserId as number;
+
+          const proposal = await this.ctx.proposals.create({
+            data: {
+              details,
+              resources,
+              impact,
+              project: {
+                connect: {
+                  id: parseInt(projectId),
+                },
+              },
+              file:{},
+              // file: {
+              //   connect: {
+              //     id: fileModel.id,
+              //   },
+              // },
+              author: {
+                connect: {
+                  id: userId,
+                },
+              },
+            },
+          });
+
+          res.status(201).send({ data: proposal });
+        } catch (e) {
+          console.error(e);
           next(new InternalServerError());
         }
       },
@@ -206,7 +328,59 @@ export default class AdminController extends AbstractController {
     ];
   }
 
+  updateProposal(){
+    return [
+      validateRequestParams(z.object({ id: z.number() })),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { id } = req.params as unknown as { id: number };
+          const { name, description, type } = req.body;
+
+          const existingProject = await this.ctx.projects.findUnique({ where: { id } });
+          if (!existingProject) {
+            return res.status(404).json({ error: 'Project not found' });
+          }
+
+          const updatedProject = await this.ctx.projects.update({
+            where: { id },
+            data: {
+              name: name ?? existingProject.name,
+              description: description ?? existingProject.description,
+              type: type ?? existingProject.type,
+            },
+          });
+
+          res.status(200).json({ data: updatedProject });
+        } catch (e) {
+          console.error('Error updating project:', e);
+          if (e instanceof ZodError) {
+            return res.status(400).json({
+              error: 'Invalid request parameters',
+              details: e.errors,
+            });
+          }
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+
   deleteProject() {
+    return [
+      validateRequestParams(z.object({ id: z.number() })),
+      async (req: Request, res: Response, next: NextFunction) => {
+        try {
+          const { id } = req.params as unknown as { id: number };
+          await this.ctx.projects.delete({ where: { id } });
+          res.sendStatus(204);
+        } catch (e) {
+          console.error('Error deleting project:', e);
+          next(new InternalServerError());
+        }
+      },
+    ];
+  }
+  deleteProposal(){
     return [
       validateRequestParams(z.object({ id: z.number() })),
       async (req: Request, res: Response, next: NextFunction) => {
